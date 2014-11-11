@@ -2,7 +2,6 @@
 
 import unittest
 import os
-import lmoments3 as lm
 import numpy as np
 from copy import copy
 from numpy.testing import assert_almost_equal
