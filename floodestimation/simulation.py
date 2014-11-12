@@ -18,6 +18,7 @@
 import numpy as np
 import math
 import lmoments3 as lm
+import lmoments3.distr as distr
 
 
 class H2Simulation(object):
@@ -50,17 +51,20 @@ class H2Simulation(object):
 
         v2s = np.empty(n)
         total_years = sum([len(donor.amax_records) for donor in self.growth_curve_analysis.donor_catchments])
+        # Generated records using pooling group kappa distribution for all donors at once
+        kappa_distr = distr.Kappa(loc=kap_para[0], scale=kap_para[1], k=kap_para[2], h=kap_para[3])
+
+        total_sim_record = kappa_distr.ppf(np.random.random(total_years * n))
+        record_start = 0
         for sim_index in range(n):
             donor_t2s = np.empty(len(self.growth_curve_analysis.donor_catchments))
             donor_t3s = np.empty(len(self.growth_curve_analysis.donor_catchments))
-            # Generated records using pooling group kappa distribution for all donors at once
-            total_sim_record = lm.randkap(total_years, kap_para)
 
-            record_start = 0
             for donor_index, donor in enumerate(self.growth_curve_analysis.donor_catchments):
                 record_length = len(donor.amax_records)
+                sim_record = total_sim_record[record_start : record_start + record_length]
                 # simulated sample L-moment ratios
-                l1, l2, donor_t3s[donor_index] = lm.samlmu(total_sim_record[record_start:record_start+record_length], nmom=3)
+                l1, l2, donor_t3s[donor_index] = lm.samlmu(sim_record, nmom=3)
                 donor_t2s[donor_index] = l2 / l1
                 record_start += record_length
             v2_sim = self.donor_weights * ((donor_t2s - t2_pool) ** 2 + (donor_t3s - t3_pool) ** 2)
