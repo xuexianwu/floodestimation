@@ -18,6 +18,16 @@ class TestH2Simulation(unittest.TestCase):
     def setUpClass(cls):
         settings.OPEN_HYDROLOGY_JSON_URL = 'file:' + pathname2url(os.path.abspath('./floodestimation/fehdata_test.json'))
         cls.db_session = db.Session()
+        gauged_catchments = CatchmentCollections(cls.db_session)
+        catchment = load_catchment('floodestimation/tests/data/37017.CD3')
+
+
+        analysis = GrowthCurveAnalysis(catchment, gauged_catchments)
+        analysis.find_donor_catchments()
+        cls.rec_lengths = [len(donor.amax_records) for donor in analysis.donor_catchments]
+        t2, t3 = analysis._var_and_skew(analysis.donor_catchments)
+        cls.lmom_p = [1, t2, t3, 0]  # For just now assume t4=0, need to check how to calculate pooled t4
+        print("Pooled L-moments: {}".format(cls.lmom_p))
 
     def setUp(self):
         self.start_time = datetime.now()
@@ -32,11 +42,5 @@ class TestH2Simulation(unittest.TestCase):
         cls.db_session.close()
 
     def test_h2(self):
-        gauged_catchments = CatchmentCollections(self.db_session)
-        catchment = load_catchment('floodestimation/tests/data/37017.CD3')
-
-        analysis = GrowthCurveAnalysis(catchment, gauged_catchments)
-        analysis.find_donor_catchments()
-
-        sim = H2Simulation(analysis)
+        sim = H2Simulation(self.rec_lengths, self.lmom_p)
         sim.simulated_mean_dev()

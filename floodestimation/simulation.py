@@ -23,55 +23,64 @@ import lmoments3.distr as distr
 
 class H2Simulation(object):
 
-    def __init__(self, growth_curve_analysis):
-        self.growth_curve_analysis = growth_curve_analysis
-        if not growth_curve_analysis.donor_catchments:
-            growth_curve_analysis.donor_catchments = growth_curve_analysis.find_donors()
-        self.donor_weights = np.array([float(len(donor.amax_records)) for donor in self.growth_curve_analysis.donor_catchments])
-        self.donor_weights /= sum(self.donor_weights)
+    def __init__(self, rec_lengths, lmom_p):
+        self.rec_lengths = rec_lengths
+        try:
+            if len(lmom_p) == 4:
+                self.lmom_p = lmom_p
+            else:
+                raise ValueError("Pooled L-moments must be a list of 4 values.")
+        except TypeError:
+            raise ValueError("Pooled L-moments must be a list of 4 values.")
 
     def simulated_mean_dev(self):
-        # Pooling group L-moments
-        t2_pool, t3_pool = self.growth_curve_analysis._var_and_skew(self.growth_curve_analysis.donor_catchments)
-        # Fitted kappa distribution function paras
-        kap_para = lm.pelkap([1, t2_pool, t3_pool, 0])
         n = 500
+        n_donors = len(self.rec_lengths)
+        print("Donors: {}".format(n_donors))
+        total_years = sum(self.rec_lengths)
+        print("Pooled records: {}".format(total_years))
+        donor_weights = np.asarray(self.rec_lengths, dtype=np.float32) / total_years
+        print("Donor weights: {}".format(donor_weights))
 
         # V2 observed:
         v2 = []
-        for donor_index, donor in enumerate(self.growth_curve_analysis.donor_catchments):
-            record = np.array([record.flow for record in donor.amax_records if record.flag == 0])
-            record /= np.median(record)
-            l1, l2, t3 = lm.samlmu(record, nmom=3)
-            t2 = l2 / l1
-            v2.append(self.donor_weights[donor_index] * ((t2 - t2_pool) ** 2 + (t3 - t3_pool) ** 2))
-        v2_obs = np.sqrt(sum(v2))
-        print("v2 obs: {}".format(v2_obs))
+        # donor_t2s = np.empty(n_donors)
+        # donor_t3s = np.empty(n_donors)
+        # for donor_index, donor in enumerate(self.growth_curve_analysis.donor_catchments):
+        #     record = np.array([record.flow for record in donor.amax_records if record.flag == 0])
+        #     record /= np.median(record)
+        #     l1, l2, donor_t3s[donor_index] = lm.samlmu(record, nmom=3)
+        #     donor_t2s[donor_index] = l2 / l1
+        # v2_obs = math.sqrt(sum(donor_weights * ((donor_t2s - t2_pool) ** 2 + (donor_t3s - t3_pool) ** 2)))
+        # print("v2 obs: {}".format(v2_obs))
 
 
-        v2s = np.empty(n)
-        total_years = sum([len(donor.amax_records) for donor in self.growth_curve_analysis.donor_catchments])
         # Generated records using pooling group kappa distribution for all donors at once
+        kap_para = lm.pelkap(self.lmom_p)
+        print("Kappa paras: {}".format(kap_para))
         kappa_distr = distr.Kappa(loc=kap_para[0], scale=kap_para[1], k=kap_para[2], h=kap_para[3])
-
         total_sim_record = kappa_distr.ppf(np.random.random(total_years * n))
+        print("Simulated records: {}".format(len(total_sim_record)))
+
         record_start = 0
+        simulated_v2s = np.empty(n)
         for sim_index in range(n):
-            donor_t2s = np.empty(len(self.growth_curve_analysis.donor_catchments))
-            donor_t3s = np.empty(len(self.growth_curve_analysis.donor_catchments))
+            donor_t2s = np.empty(n_donors)
+            donor_t3s = np.empty(n_donors)
 
-            for donor_index, donor in enumerate(self.growth_curve_analysis.donor_catchments):
-                record_length = len(donor.amax_records)
-                sim_record = total_sim_record[record_start : record_start + record_length]
+            for donor_index in range(n_donors):
+                sim_record = total_sim_record[record_start : record_start + self.rec_lengths[donor_index]]
                 # simulated sample L-moment ratios
-                l1, l2, donor_t3s[donor_index] = lm.samlmu(sim_record, nmom=3)
+                l1, l2, t3 = lm.samlmu(sim_record, nmom=3)
                 donor_t2s[donor_index] = l2 / l1
-                record_start += record_length
-            v2_sim = self.donor_weights * ((donor_t2s - t2_pool) ** 2 + (donor_t3s - t3_pool) ** 2)
-            v2s[sim_index] = math.sqrt(sum(v2_sim))
+                donor_t3s[donor_index] = t3
+                record_start += self.rec_lengths[donor_index]
 
-        h2 = (v2_obs - np.median(v2s)) / np.std(v2s)
-        print("H2: {}".format(h2))
+            simulated_v2s[sim_index] = np.sqrt(
+                np.sum(donor_weights * ((donor_t2s - self.lmom_p[1]) ** 2 + (donor_t3s - self.lmom_p[2]) ** 2)))
+
+        print("median: {}".format(np.median(simulated_v2s)))
+        print("st dev: {}".format(np.std(simulated_v2s)))
 
 
 
