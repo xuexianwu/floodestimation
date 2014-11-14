@@ -22,7 +22,6 @@ import lmoments3.distr as distr
 
 
 class H2Simulation(object):
-
     def __init__(self, rec_lengths, lmom_p):
         self.rec_lengths = rec_lengths
         try:
@@ -48,7 +47,7 @@ class H2Simulation(object):
         # donor_t2s = np.empty(n_donors)
         # donor_t3s = np.empty(n_donors)
         # for donor_index, donor in enumerate(self.growth_curve_analysis.donor_catchments):
-        #     record = np.array([record.flow for record in donor.amax_records if record.flag == 0])
+        # record = np.array([record.flow for record in donor.amax_records if record.flag == 0])
         #     record /= np.median(record)
         #     l1, l2, donor_t3s[donor_index] = lm.samlmu(record, nmom=3)
         #     donor_t2s[donor_index] = l2 / l1
@@ -62,8 +61,8 @@ class H2Simulation(object):
         record_sim_all = kappa_distr.ppf(np.random.random(n_p * n_sim))
 
         record_start = 0
-        # Simulated test statistic, V2
-        v2s_sim = np.empty(n_sim)
+        # Simulated test statistic: variability V2
+        variabilities_sim = np.empty(n_sim)
 
         # Loop through all simulations
         for i_sim in range(n_sim):
@@ -75,7 +74,7 @@ class H2Simulation(object):
             for i_d in range(n_d):
                 # Simulated donor record taken from large simulated record. All donors use the same distribution as the
                 # pooling group because null hypothesis is that all donors have same distribution as the pooling group.
-                record_d_sim = record_sim_all[record_start : record_start + self.rec_lengths[i_d]]
+                record_d_sim = record_sim_all[record_start: record_start + self.rec_lengths[i_d]]
                 # Sample L-moment ratios from simulated record
                 l1, l2, t3 = lm.samlmu(record_d_sim, nmom=3)
                 t2s_d[i_d] = l2 / l1
@@ -85,10 +84,10 @@ class H2Simulation(object):
 
             # The test statistic is V2, root of squared errors of second and third L-moment ratios, weighted by the
             # record length of each donor.
-            v2s_sim[i_sim] = math.sqrt(
+            variabilities_sim[i_sim] = math.sqrt(
                 np.sum(weight_d * ((t2s_d - self.lmom_p[1]) ** 2 + (t3s_d - self.lmom_p[2]) ** 2)))
 
-        return np.median(v2s_sim), np.std(v2s_sim)
+        return np.median(variabilities_sim), np.std(variabilities_sim)
 
 
 
