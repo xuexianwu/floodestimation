@@ -592,11 +592,11 @@ class GrowthCurveAnalysis(object):
             # Special case if the first donor is the subject catchment itself, assumed if similarity distance == 0.
             if self._similarity_distance(self.catchment, catchments[0]) == 0:
                 l_cv_weights *= self._l_cv_weight_factor()  # Reduce weights of all donor catchments
-                l_cv_weights[0] += 1 - sum(l_cv_weights)    # But increase the weight of the subject catchment
-            l_cv = sum(l_cv_weights * l_cvs)
+                l_cv_weights[0] += 1 - np.sum(l_cv_weights)    # But increase the weight of the subject catchment
+            l_cv = np.sum(l_cv_weights * l_cvs)
 
-            l_skew_weights /= sum(l_skew_weights)  # Weights sum to 1
-            l_skew = sum(l_skew_weights * l_skews)
+            l_skew_weights /= np.sum(l_skew_weights)  # Weights sum to 1
+            l_skew = np.sum(l_skew_weights * l_skews)
 
         return l_cv, l_skew
 

@@ -16,7 +16,7 @@ from floodestimation import db
 class TestH2Simulation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        settings.OPEN_HYDROLOGY_JSON_URL = 'file:' + pathname2url(os.path.abspath('./floodestimation/fehdata_test.json'))
+        #settings.OPEN_HYDROLOGY_JSON_URL = 'file:' + pathname2url(os.path.abspath('./floodestimation/fehdata_test.json'))
         cls.db_session = db.Session()
         gauged_catchments = CatchmentCollections(cls.db_session)
         catchment = load_catchment('floodestimation/tests/data/37017.CD3')

@@ -57,7 +57,7 @@ class H2Simulation(object):
 
         # Generated records using pooling group kappa distribution for all donors at once
         kap_para = lm.pelkap(self.lmom_p)
-        kappa_distr = distr.Kappa(loc=kap_para[0], scale=kap_para[1], k=kap_para[2], h=kap_para[3])
+        kappa_distr = distr.kap(loc=kap_para[0], scale=kap_para[1], k=kap_para[2], h=kap_para[3])
         record_sim_all = kappa_distr.ppf(np.random.random(n_p * n_sim))
 
         record_start = 0
