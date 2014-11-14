@@ -34,13 +34,14 @@ class H2Simulation(object):
             raise ValueError("Pooled L-moments must be a list of 4 values.")
 
     def simulated_mean_dev(self):
-        n = 500
-        n_donors = len(self.rec_lengths)
-        print("Donors: {}".format(n_donors))
-        total_years = sum(self.rec_lengths)
-        print("Pooled records: {}".format(total_years))
-        donor_weights = np.asarray(self.rec_lengths, dtype=np.float32) / total_years
-        print("Donor weights: {}".format(donor_weights))
+        # Number of simulations
+        n_sim = 500
+        # Number of donor catchments in pooling group
+        n_d = len(self.rec_lengths)
+        # Total number of years in pooling group
+        n_p = sum(self.rec_lengths)
+        # Donor weights
+        weight_d = np.asarray(self.rec_lengths, dtype=np.float64) / n_p
 
         # V2 observed:
         v2 = []
@@ -57,30 +58,37 @@ class H2Simulation(object):
 
         # Generated records using pooling group kappa distribution for all donors at once
         kap_para = lm.pelkap(self.lmom_p)
-        print("Kappa paras: {}".format(kap_para))
         kappa_distr = distr.Kappa(loc=kap_para[0], scale=kap_para[1], k=kap_para[2], h=kap_para[3])
-        total_sim_record = kappa_distr.ppf(np.random.random(total_years * n))
-        print("Simulated records: {}".format(len(total_sim_record)))
+        record_sim_all = kappa_distr.ppf(np.random.random(n_p * n_sim))
 
         record_start = 0
-        simulated_v2s = np.empty(n)
-        for sim_index in range(n):
-            donor_t2s = np.empty(n_donors)
-            donor_t3s = np.empty(n_donors)
+        # Simulated test statistic, V2
+        v2s_sim = np.empty(n_sim)
 
-            for donor_index in range(n_donors):
-                sim_record = total_sim_record[record_start : record_start + self.rec_lengths[donor_index]]
-                # simulated sample L-moment ratios
-                l1, l2, t3 = lm.samlmu(sim_record, nmom=3)
-                donor_t2s[donor_index] = l2 / l1
-                donor_t3s[donor_index] = t3
-                record_start += self.rec_lengths[donor_index]
+        # Loop through all simulations
+        for i_sim in range(n_sim):
+            # Second and third sample L-moment ratios for the **simulated** donor record
+            t2s_d = np.empty(n_d)
+            t3s_d = np.empty(n_d)
 
-            simulated_v2s[sim_index] = np.sqrt(
-                np.sum(donor_weights * ((donor_t2s - self.lmom_p[1]) ** 2 + (donor_t3s - self.lmom_p[2]) ** 2)))
+            # Loop through all donors
+            for i_d in range(n_d):
+                # Simulated donor record taken from large simulated record. All donors use the same distribution as the
+                # pooling group because null hypothesis is that all donors have same distribution as the pooling group.
+                record_d_sim = record_sim_all[record_start : record_start + self.rec_lengths[i_d]]
+                # Sample L-moment ratios from simulated record
+                l1, l2, t3 = lm.samlmu(record_d_sim, nmom=3)
+                t2s_d[i_d] = l2 / l1
+                t3s_d[i_d] = t3
+                # Next time, take the next sequence of simulated records
+                record_start += self.rec_lengths[i_d]
 
-        print("median: {}".format(np.median(simulated_v2s)))
-        print("st dev: {}".format(np.std(simulated_v2s)))
+            # The test statistic is V2, root of squared errors of second and third L-moment ratios, weighted by the
+            # record length of each donor.
+            v2s_sim[i_sim] = math.sqrt(
+                np.sum(weight_d * ((t2s_d - self.lmom_p[1]) ** 2 + (t3s_d - self.lmom_p[2]) ** 2)))
+
+        return np.median(v2s_sim), np.std(v2s_sim)
 
 
 

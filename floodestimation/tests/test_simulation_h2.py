@@ -43,4 +43,6 @@ class TestH2Simulation(unittest.TestCase):
 
     def test_h2(self):
         sim = H2Simulation(self.rec_lengths, self.lmom_p)
-        sim.simulated_mean_dev()
+        median, stdev = sim.simulated_mean_dev()
+        print("median: {}".format(median))
+        print("st dev: {}".format(stdev))
