@@ -18,7 +18,7 @@
 import numpy as np
 import math
 import lmoments3 as lm
-import lmoments3.distr as distr
+from lmoments3 import distr
 
 
 class H2Simulation(object):
@@ -54,11 +54,9 @@ class H2Simulation(object):
         # v2_obs = math.sqrt(sum(donor_weights * ((donor_t2s - t2_pool) ** 2 + (donor_t3s - t3_pool) ** 2)))
         # print("v2 obs: {}".format(v2_obs))
 
-
         # Generated records using pooling group kappa distribution for all donors at once
-        kap_para = lm.pelkap(self.lmom_p)
-        kappa_distr = distr.kap(loc=kap_para[0], scale=kap_para[1], k=kap_para[2], h=kap_para[3])
-        record_sim_all = kappa_distr.rvs(size=n_p * n_sim)
+        kap_para = distr.kap.lmom_fit(lmom_ratios=self.lmom_p)
+        record_sim_all = distr.kap.rvs(size=n_p * n_sim, **kap_para)
 
         record_start = 0
         # Simulated test statistic: variability V2
@@ -76,7 +74,7 @@ class H2Simulation(object):
                 # pooling group because null hypothesis is that all donors have same distribution as the pooling group.
                 record_d_sim = record_sim_all[record_start: record_start + self.rec_lengths[i_d]]
                 # Sample L-moment ratios from simulated record
-                l1, l2, t3 = lm.samlmu(record_d_sim, nmom=3)
+                l1, l2, t3 = lm.lmom_ratios(record_d_sim, nmom=3)
                 t2s_d[i_d] = l2 / l1
                 t3s_d[i_d] = t3
                 # Next time, take the next sequence of simulated records
